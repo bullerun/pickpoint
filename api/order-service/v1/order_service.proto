@@ -1,0 +1,212 @@
+syntax = "proto3";
+
+package order;
+option go_package = "gitlab.ozon.dev/ryskalwork/ryskal-nikita-hw-1/pkg/order-service;order_service";
+import "google/protobuf/timestamp.proto";
+import "google/api/field_behavior.proto";
+import "google/api/annotations.proto";
+import "validate/validate.proto";
+import "protoc-gen-openapiv2/options/annotations.proto";
+
+option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_swagger) = {
+  info: {
+    title: "Пункт выдачи заказов";
+    version: "1.0.0";
+    description: "Сервис выполняет функции ПВЗ";
+  };
+  host: "localhost:7002";
+  schemes: HTTP;
+  consumes: "application/json";
+  produces: "application/json";
+};
+service OrderService {
+
+  rpc AddOrder(AddOrderRequest) returns (AddOrderResponse){
+    option (google.api.http) = {
+      post: "/v1/order/add"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Принимает заказ от курьера";
+      description: "Принимает идентификатор товара, пользователя, количество дней хранения, тип упаковки, вес, цену без учета стоимости упаковки";
+    };
+  };
+
+
+  rpc UpdateIssued(UpdateIssuedRequest) returns (UpdateIssuedResponse){
+    option (google.api.http) = {
+      post: "/v1/order/update_issued"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Выдает товар";
+      description: "принимает идентификаторы товаров, все они должны принадлежать одному пользователю";
+    };
+  };
+
+
+  rpc ReturnOrderToCourier(ReturnOrderToCourierRequest) returns (ReturnOrderToCourierResponse){
+    option (google.api.http) = {
+      post: "/v1/order/return_to_courier"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Вернуть товар курьеру";
+      description: "Принимает идентификатор товара";
+    };
+  };
+
+
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse){
+    option (google.api.http) = {
+      get: "/v1/order/list"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Выводит товары в зависимости от запроса";
+      description: "Принимает идентификатор пользователя, необязательный флаг вывода последних n товаров, необязательный флаг вывода товаров, которые находятся в пвз";
+    };
+  };
+
+
+  rpc AcceptReturn(AcceptReturnRequest) returns (AcceptReturnResponse){
+    option (google.api.http) = {
+      post: "/v1/order/accept_return"
+      body: "*"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Вернуть заказ в ПВЗ";
+      description: "принимает идентификатор товара, идентификатор пользователя";
+    };
+  };
+
+
+  rpc GetReturned(GetReturnedRequest) returns (GetReturnedResponse){
+    option (google.api.http) = {
+      get: "/v1/order/returned"
+    };
+    option (grpc.gateway.protoc_gen_openapiv2.options.openapiv2_operation) = {
+      summary: "Выводит товары которые вернули";
+      description: "Принимает необязательные параметры количества товаров, необязательный параметр количества пропущенных товаров";
+    };
+  };
+}
+
+
+message Order {
+  int64 id = 1;
+  int64 user_id = 2;
+  google.protobuf.Timestamp order_create_date = 3;
+  google.protobuf.Timestamp expiry_date = 4;
+  google.protobuf.Timestamp accept_date = 5;
+  google.protobuf.Timestamp return_from_client = 6;
+  google.protobuf.Timestamp return_to_courier = 7;
+  string packaging = 8;
+  float weigh = 9;
+  float cost = 10;
+}
+
+
+message AddOrderRequest {
+  int64 id = 1[
+    (validate.rules).int64.gt = 0,
+    (google.api.field_behavior) = REQUIRED
+  ];
+
+  int64 user_id = 2[
+    (validate.rules).int64.gt = 0,
+    (google.api.field_behavior) = REQUIRED
+  ];
+  int64 shelf_life = 3[
+    (validate.rules).int64.gt = 0,
+    (google.api.field_behavior) = REQUIRED
+  ];
+  string packaging = 4[
+    (validate.rules).string = {in: ["box", "film", "bag"]},
+    (google.api.field_behavior) = REQUIRED
+  ];
+  float weigh = 5[
+    (google.api.field_behavior) = REQUIRED
+  ];
+  float cost = 6[
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
+
+
+message AddOrderResponse{
+
+}
+
+message ListOrdersResponse {
+  repeated Order orders = 1[
+
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
+
+
+message ListOrdersRequest {
+  int64 user_id = 1[
+    (google.api.field_behavior) = REQUIRED
+  ];
+  bool in_the_delivery_point = 2[
+    (google.api.field_behavior) = OPTIONAL
+  ];
+  int64 latest = 3[
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+
+message UpdateIssuedRequest {
+  repeated string order_ids = 1[
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
+
+
+message UpdateIssuedResponse{
+
+}
+
+message ReturnOrderToCourierRequest {
+  int64 order_id = 1[
+    (validate.rules).int64.gt = 0,
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
+
+
+message ReturnOrderToCourierResponse{
+
+}
+
+message AcceptReturnRequest {
+  int64 user_id = 1[
+    (google.api.field_behavior) = REQUIRED
+  ];
+  int64 order_id = 2[
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
+
+message AcceptReturnResponse{
+
+}
+
+
+message GetReturnedRequest {
+  int64 offset = 1[
+    (google.api.field_behavior) = OPTIONAL
+  ];
+  int64 limit = 2[
+    (google.api.field_behavior) = OPTIONAL
+  ];
+}
+
+
+message GetReturnedResponse {
+  repeated Order orders = 1[
+    (google.api.field_behavior) = REQUIRED
+  ];
+}
